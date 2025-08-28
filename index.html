@@ -1,0 +1,1828 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Retro Gaming</title>
+  <style>
+    html:has(body .config-container:not(.show)) { overflow: hidden; }
+    html, body { height: 100%; margin: 0; background: #1a1a1a; color: #fff; }
+    body { display: grid; place-items: center; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    
+    .console-screen { 
+      width: 100vw;
+      height: calc(100vw * 0.75);
+      max-width: min(640px, 100vw);
+      max-height: min(480px, 100vh - 32px);
+      image-rendering: pixelated; 
+      image-rendering: -moz-crisp-edges;
+      image-rendering: crisp-edges;
+      /* border-radius: 8px; */
+      background: #000;
+      object-fit: contain;
+      display: block;
+    }
+    
+    .gameboy { 
+      aspect-ratio: 160/144;
+      /* border: 8px solid #8b956d; */
+      background: #9bbc0f;
+      max-width: 640px;
+      max-height: 576px;
+      height: calc(100vw * 0.9);
+      /* border-radius: 4px; */
+    }
+    
+    .n64 { 
+      aspect-ratio: 4/3;
+      /* border: 8px solid #666; */
+      background: #000;
+      max-width: 640px;
+      max-height: 480px;
+    }
+    
+    .psx { 
+      aspect-ratio: 4/3;
+      /* border: 8px solid #333; */
+      background: #000;
+      max-width: 640px;
+      max-height: 480px;
+      box-shadow: 0 0 20px rgba(128, 128, 255, 0.3);
+    }
+    
+    .gamecube {
+      aspect-ratio: 4/3;
+      /* border: 8px solid #444; */
+      background: #000;
+      max-width: 640px;
+      max-height: 480px;
+    }
+
+    /* Square display: maximize height, crop left/right to fill 640x640 */
+    .console-screen.square {
+      /* Keep the square within viewport and cap at 640 */
+      width: min(640px, 100vmin) !important;
+      height: min(640px, 100vmin) !important;
+      max-width: none !important;
+      max-height: none !important;
+      border: 0 !important;        /* remove any console-specific borders */
+      object-fit: cover;           /* crop left/right for 4:3 sources */
+      object-position: 50% 50%;
+      background: #000;
+      /* border-radius: 8px; */
+    }
+
+    /* NZXT CAM Configuration Interface */
+    .config-container {
+      display: none;
+      max-width: 720px;
+      width: 90%;
+      background: #2a2a2a;
+      border-radius: 12px;
+      padding: 24px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+    }
+    
+    .config-container.show {
+      display: block;
+    }
+    
+    .config-title {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: #fff;
+      text-align: center;
+    }
+    
+    .games-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+    
+    .game-item {
+      background: #383838;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      padding: 16px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 2px solid transparent;
+    }
+    
+    .game-item:hover {
+      background: #424242;
+      border-color: #666;
+    }
+    
+    .game-item.selected {
+      background: #4a90e2;
+      border-color: #5ba0f2;
+    }
+    
+    .game-title {
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+    
+    .game-console {
+      font-size: 12px;
+      color: #aaa;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Filter bar */
+    .filter-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+      justify-content: center;
+    }
+    .filter-btn {
+      background: #2f2f2f;
+      border: 1px solid #444;
+      color: #eee;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      cursor: pointer;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+    }
+    .filter-btn:hover { background: #3a3a3a; }
+    .filter-btn.active { background: #4a90e2; border-color: #5ba0f2; color: #fff; }
+
+    /* Hide normal interface during config */
+    .main-interface {
+      display: block;
+    }
+    
+    .main-interface.hide {
+      display: none;
+    }
+
+    /* Game chips (multi-select + per-item drag to reorder) */
+    .game-chip { display: flex; width: 100%; align-items: stretch; margin-bottom: 0; }
+    .chip-drag { display: inline-flex; align-items: center; justify-content: center; width: 34px; user-select: none; cursor: grab; background: #2f2f2f; border: 1px solid #444; border-right: 0; border-radius: 8px 0 0 8px; }
+    .chip-drag:active { cursor: grabbing; }
+    .chip-select { background: #383838; border: 1px solid #444; color: #eee; padding: 12px; cursor: pointer; display: flex; gap: 8px; align-items: center; flex: 1; border-radius: 0 8px 8px 0; text-align: left; min-width: 0; }
+    .chip-select:hover { background: #424242; }
+    .chip-select.selected { background: #4a90e2; border-color: #5ba0f2; color: #fff; }
+    .badge { display: inline-block; background: #1f2937; color: #cbd5e1; border: 1px solid #334155; border-radius: 999px; padding: 2px 8px; font-size: 11px; }
+    .game-chip.drag-over .chip-drag, .game-chip.drag-over .chip-select { background: #4a4a4a; }
+    .controls { display: flex; gap: 8px; flex-wrap: nowrap; justify-content: center; align-items: center; margin-bottom: 12px; }
+    .control-label { width: auto; flex: 0 0 auto; text-align: center; color: #cbd5e1; font-size: 13px; margin: 0 8px 0 0; font-weight: 600; letter-spacing: 0.2px; white-space: nowrap; display: inline-flex; align-items: center; }
+    .search { background: #1f1f1f; color: #eee; border: 1px solid #3a3a3a; border-radius: 8px; padding: 8px 10px; }
+
+    /* Runtime ticker overlay */
+    .video-wrap { position: relative; display: inline-block; }
+    .runtime-ticker { position: absolute; top: 6px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.55); color: #fff; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; line-height: 1; display: none; pointer-events: none; z-index: 2; }
+  </style>
+</head>
+
+<body>
+  <!-- NZXT CAM Configuration Interface -->
+  <div class="config-container" id="config-container">
+    <h2 class="config-title">Select Retro Games</h2>
+    <div class="controls">
+      <input id="game-search" class="search" type="search" placeholder="Search games (e.g. Zelda, PSX)" />
+    </div>
+    <div class="filter-bar" id="filter-bar"></div>
+    <ul class="games-list" id="games-list">
+      <!-- Games will be populated by JavaScript -->
+    </ul>
+  </div>
+
+  <!-- Main Gaming Interface -->
+  <div class="main-interface" id="main-interface">
+    <div class="video-wrap">
+      <div class="runtime-ticker" id="runtime-ticker">00:00 / 00:00</div>
+      <video class="console-screen" autoplay loop muted controls id="game-video">
+        <source src="" type="video/mp4" id="video-source">
+        Your browser does not support the video tag.
+      </video>
+    </div>
+  </div>
+
+  <script>
+    const APP_VERSION = '1.1.0';
+    const games = [
+      {
+        name: "Pokemon Crystal",
+        console: "gameboy",
+        title: "Game Boy Color",
+        src: "https://ia800706.us.archive.org/29/items/pokemoncrystal-tas-mrwint/pokemoncrystal-tas-mrwint_512kb.mp4",
+        type: "video/mp4",
+        width: 160,
+        height: 144
+      },
+      {
+        name: "The Legend of Zelda: Link's Awakening DX",
+        console: "gameboy",
+        title: "Game Boy Color",
+        src: "https://archive.org/download/lozladx-tas-twistedtammer/lozladx-tas-twistedtammer_512kb.mp4",
+        type: "video/mp4",
+        width: 160,
+        height: 144
+      },
+      {
+        name: "The Legend of Zelda: Oracle of Seasons",
+        console: "gameboy",
+        title: "Game Boy Color",
+        src: "https://archive.org/download/thelegendofzeldaoracleofseasons-tas-roosteradventureglitch-sbd/thelegendofzeldaoracleofseasons-tas-roosteradventureglitch-sbd.mp4",
+        type: "video/mp4",
+        width: 160,
+        height: 144
+      },
+      {
+        name: "Pokemon Pinball",
+        console: "gameboy",
+        title: "Game Boy Color",
+        src: "https://archive.org/download/pokemonpinball-tas-defeatmewtwo_redboard-kusogeman/pokemonpinball-tas-defeatmewtwo_redboard-kusogeman.mp4",
+        type: "video/mp4",
+        width: 160,
+        height: 144
+      },
+      {
+        name: "Pokemon Gold",
+        console: "gameboy",
+        title: "Game Boy Color",
+        src: "https://archive.org/download/pkmngold-tas-geg-casualpokeplayer/pkmngold-tas-geg-casualpokeplayer.mp4",
+        type: "video/mp4",
+        width: 160,
+        height: 144
+      },
+      {
+        name: "Pocket Pool Challenge",
+        console: "gameboy",
+        title: "Game Boy Color",
+        src: "http://archive.org/download/ppc-tas-maxscore-poochyexe/ppc-tas-maxscore-poochyexe.mp4",
+        type: "video/mp4",
+        width: 160,
+        height: 144
+      },
+      {
+        name: "Harry Potter and the Sorcerer's Stone",
+        console: "gameboy",
+        title: "Game Boy Color",
+        src: "https://archive.org/download/harrypotterandthesorcerersstone-tas-gamendglitch-jlun2_sanqui/harrypotterandthesorcerersstone-tas-gamendglitch-jlun2_sanqui.mp4",
+        type: "video/mp4",
+        width: 160,
+        height: 144
+      },
+      {
+        name: "SpongeBob SquarePants: Legend of the Lost Spatula",
+        console: "gameboy",
+        title: "Game Boy Color",
+        src: "https://archive.org/download/CoolkirbysGbcSpongebobSquarepantsLegendOfTheLostSpatulaIn0557.9/spongeboblotls-tasv2-coolkirby_512kb.mp4",
+        type: "video/mp4",
+        width: 160,
+        height: 144
+      },
+      {
+        name: "Harry Potter: Chamber of Secrets",
+        console: "gameboy",
+        title: "Game Boy Color",
+        src: "https://archive.org/download/Harrypottterchambresecret-tas-smpjlun2/harrypottterchambresecret-tas-smp,jlun2_512kb.mp4",
+        type: "video/mp4",
+        width: 160,
+        height: 144
+      },
+      {
+        name: "Pokemon Trading Card Game",
+        console: "gameboy",
+        title: "Game Boy Color",
+        src: "https://archive.org/download/pokemontradingcardgame-tasv3-anonymoususer/pokemontradingcardgame-tasv3-anonymoususer_512kb.mp4",
+        type: "video/mp4",
+        width: 160,
+        height: 144
+      },
+      {
+        name: "Shrek: Fairy Tale Freakdown",
+        console: "gameboy",
+        title: "Game Boy Color",
+        src: "https://archive.org/download/shrekfairytalefreakdown-tas-strife/shrekfairytalefreakdown-tas-strife_512kb.mp4",
+        type: "video/mp4",
+        width: 160,
+        height: 144
+      },
+      {
+        name: "Grimace's Birthday",
+        console: "gameboy",
+        title: "Game Boy Color",
+        src: "https://archive.org/download/grimacesbirthday-tas-cephla_alyosha/grimacesbirthday-tas-cephla_alyosha.mp4",
+        type: "video/mp4",
+        width: 160,
+        height: 144
+      },
+      {
+        name: "LEGO Island 2",
+        console: "gameboy",
+        title: "Game Boy Color",
+        src: "https://archive.org/download/legoisland2-gbc-tas-samunderscore/legoisland2-gbc-tas-samunderscore.mp4",
+        type: "video/mp4",
+        width: 160,
+        height: 144
+      },
+      {
+        name: "Tony Hawk's Pro Skater",
+        console: "gameboy",
+        title: "Game Boy Color",
+        src: "https://archive.org/download/tonyhawksproskater-tas-jlun2/tonyhawksproskater-tas-jlun2_512kb.mp4",
+        type: "video/mp4",
+        width: 160,
+        height: 144
+      },
+      {
+        name: "Batman: Chaos in Gotham",
+        console: "gameboy",
+        title: "Game Boy Color",
+        src: "https://archive.org/download/batmanchaosingotham-tas-induviel/batmanchaosingotham-tas-induviel.mp4",
+        type: "video/mp4",
+        width: 160,
+        height: 144
+      },
+      {
+        name: "NHL 2000",
+        console: "gameboy",
+        title: "Game Boy Color",
+        src: "https://archive.org/download/nhl2000-gbc-tas-alexheights1/nhl2000-gbc-tas-alexheights1.mp4",
+        type: "video/mp4",
+        width: 160,
+        height: 144
+      },
+      {
+        name: "GoldenEye 007",
+        console: "n64",
+        title: "Nintendo 64",
+        src: "https://archive.org/download/goldeneye-tas-wyster_scaredsim/goldeneye-tas-wyster_scaredsim_512kb.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      {
+        name: "Banjo-Kazooie",
+        console: "n64",
+        title: "Nintendo 64",
+        src: "https://archive.org/download/banjokazooie-tas-100p-hyperresonance/banjokazooie-tas-100p-hyperresonance_512kb.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      {
+        name: "Star Fox 64",
+        console: "n64",
+        title: "Nintendo 64",
+        src: "https://archive.org/download/starfox64-tas-expert_maxscore-warhippy/starfox64-tas-expert_maxscore-warhippy.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      {
+        name: "Bomberman 64",
+        console: "n64",
+        title: "Nintendo 64",
+        src: "https://archive.org/download/bomberman64-tas-zvsp/bomberman64-tas-zvsp.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      {
+        name: "Donkey Kong 64",
+        console: "n64",
+        title: "Nintendo 64",
+        src: "https://archive.org/download/dk64-tasv2-ringrush/dk64-tasv2-ringrush_512kb.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      {
+        name: "DOOM 64",
+        console: "n64",
+        title: "Nintendo 64",
+        src: "https://archive.org/download/doom64-tas-headshot/doom64-tas-headshot_512kb.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      {
+        name: "Mario Kart 64",
+        console: "n64",
+        title: "Nintendo 64",
+        src: "https://archive.org/download/mk64-tas-weatherton/mk64-tas-weatherton_512kb.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      {
+        name: "Turok: Dinosaur Hunter",
+        console: "n64",
+        title: "Nintendo 64",
+        src: "https://archive.org/download/turokdinosaurhunter-tas-mmbossman/turokdinosaurhunter-tas-mmbossman_512kb.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      {
+        name: "Star Fox Adventures (TAS)",
+        console: "gamecube",
+        title: "Nintendo GameCube",
+        src: "https://archive.org/download/starfoxadventures-tas-novoidtravel-lobsterzelda/starfoxadventures-tas-novoidtravel-lobsterzelda.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      {
+        name: "Super Smash Bros. Melee (Adventure Mode - Numerics)",
+        console: "gamecube",
+        title: "Nintendo GameCube",
+        src: "https://archive.org/download/ssbm-tas-adventuremode-numerics/ssbm-tas-adventuremode-numerics_512kb.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      {
+        name: "Chocobo Racing",
+        console: "psx",
+        title: "PlayStation",
+        src: "https://www.archive.org/download/PsxChocoboRacingBySparkyIn2712.02/chocoboracing-tas-sparky.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      {
+        name: "Air Combat",
+        console: "psx",
+        title: "PlayStation",
+        src: "https://archive.org/download/aircombat-psx-tas-hard-coolhandmike/aircombat-psx-tas-hard-coolhandmike.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      {
+        name: "Crash Bandicoot (100%)",
+        console: "psx",
+        title: "PlayStation",
+        src: "https://archive.org/download/crashbandicoot-tas-100-the8bitbeast/crashbandicoot-tas-100-the8bitbeast.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      {
+        name: "Final Fantasy VII (No Slots)",
+        console: "psx",
+        title: "PlayStation",
+        src: "https://archive.org/download/ffvii-tas-noslots-lilgecko/ffvii-tas-noslots-lilgecko.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      {
+        name: "Final Fantasy IX (v3)",
+        console: "psx",
+        title: "PlayStation",
+        src: "https://archive.org/download/finalfantasyix-tasv3-lilgecko/finalfantasyix-tasv3-lilgecko_512kb.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      {
+        name: "Grand Theft Auto 2",
+        console: "psx",
+        title: "PlayStation",
+        src: "https://archive.org/download/gta2-tas-mothrayas/gta2-tas-mothrayas_512kb.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      {
+        name: "Marvel vs. Capcom",
+        console: "psx",
+        title: "PlayStation",
+        src: "https://archive.org/download/marvelvscapcom-psx-tas-kusogeman/marvelvscapcom-psx-tas-kusogeman.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      {
+        name: "MediEvil",
+        console: "psx",
+        title: "PlayStation",
+        src: "https://archive.org/download/medievil-tas-crash41596/medievil-tas-crash41596.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      {
+        name: "Mega Man 8",
+        console: "psx",
+        title: "PlayStation",
+        src: "https://archive.org/download/FractalfusionsPsxMegaMan8In4706.23/megaman8-tas-fractalfusion_512kb.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      {
+        name: "Mega Man Legends",
+        console: "psx",
+        title: "PlayStation",
+        src: "https://archive.org/download/megamanlegends-tas-hetfield90/megamanlegends-tas-hetfield90_512kb.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      {
+        name: "Metal Gear Solid: Integral (All Bosses)",
+        console: "psx",
+        title: "PlayStation",
+        src: "https://archive.org/download/metalgearsolidintegral-tas-allbosses-theenglishman/metalgearsolidintegral-tas-allbosses-theenglishman_512kb.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      {
+        name: "Resident Evil: Director's Cut (Jill)",
+        console: "psx",
+        title: "PlayStation",
+        src: "https://archive.org/download/redc-tas-jill-fortranm_arandomgametaser/redc-tas-jill-fortranm_arandomgametaser.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      {
+        name: "Tekken",
+        console: "psx",
+        title: "PlayStation",
+        src: "https://archive.org/download/spikestuff-tasv2-tekken/tekken-tasv2-spikestuff_512kb.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      {
+        name: "Tekken 3",
+        console: "psx",
+        title: "PlayStation",
+        src: "https://archive.org/download/tekken3-playaround-tas-cooljay/tekken3-playaround-tas-cooljay.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      {
+        name: "Warcraft II: The Dark Saga (Human)",
+        console: "psx",
+        title: "PlayStation",
+        src: "https://www.archive.org/download/FlipsPSXWarcraftII-TheDarkSagaHumanCampaignIn11753.32/warcraft2-tas-alliancecampaign-flip_512kb.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      {
+        name: "Warcraft II: The Dark Saga (Orc Expansion)",
+        console: "psx",
+        title: "PlayStation",
+        src: "https://archive.org/download/warcraft2-tas-orcexpansion-flip/warcraft2-tas-orcexpansion-flip_512kb.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      {
+        name: "X-COM: UFO Defense",
+        console: "psx",
+        title: "PlayStation",
+        src: "https://archive.org/download/xcomufodefense-tas-willbobsled/xcomufodefense-tas-willbobsled_512kb.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      // PC (480p)
+      {
+        name: "Wolfenstein 3D (Episode 1)",
+        console: "pc",
+        title: "PC",
+        src: "https://archive.org/download/Wolfenstein3d-tas-episode1-dwangoacslamo/wolfenstein3d-tas-episode1-dwangoac,slamo_512kb.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      {
+        name: "Diablo",
+        console: "pc",
+        title: "PC",
+        src: "https://archive.org/download/diablo-tas-dwangoac_ephphatha_staphen_ajenbo/diablo-tas-dwangoac_ephphatha_staphen_ajenbo.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      {
+        name: "Myst: Masterpiece Edition",
+        console: "pc",
+        title: "PC",
+        src: "https://archive.org/download/mystmasterpieceedition-tas-spikestuff_gelly/mystmasterpieceedition-tas-spikestuff_gelly.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      // Arcade
+      {
+        name: "Street Fighter Alpha 3 (Rose & Dhalsim Dramatic Battle)",
+        console: "arcade",
+        title: "Arcade",
+        src: "https://www.archive.org/download/ArcadeStreetFighterAlpha3roseDhalsimDramaticBattleTasIn0521.45By/sfa3-playaround-rosedhalsimdramaticbattle-error1.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      // Super Nintendo
+      {
+        name: "Disney's Aladdin (2000)",
+        console: "snes",
+        title: "Super Nintendo",
+        src: "https://archive.org/download/aladdin2000-tas-theamazingaladdin/aladdin2000-tas-theamazingaladdin.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      {
+        name: "Alien 3",
+        console: "snes",
+        title: "Super Nintendo",
+        src: "https://archive.org/download/alien3snes-tas-nymx/alien3snes-tas-nymx_512kb.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      {
+        name: "Daffy Duck: The Marvin Missions",
+        console: "snes",
+        title: "Super Nintendo",
+        src: "https://archive.org/download/daffyduckthemarvinmissions-snes-tas-gunty/daffyduckthemarvinmissions-snes-tas-gunty.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      {
+        name: "Donkey Kong Country (101%)",
+        console: "snes",
+        title: "Super Nintendo",
+        src: "https://archive.org/download/donkeykongcountry-tas-101-tompa/donkeykongcountry-tas-101-tompa_512kb.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      {
+        name: "Dragon Ball Z: Super Saiya Densetsu",
+        console: "snes",
+        title: "Super Nintendo",
+        src: "https://archive.org/download/dragonballzsupersaiyadensetsu-tas-bestending-nk/dragonballzsupersaiyadensetsu-tas-bestending-nk_512kb.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      {
+        name: "Final Fantasy IV (No Memory Corruption)",
+        console: "snes",
+        title: "Super Nintendo",
+        src: "https://www.archive.org/download/SnesFinalFantasyIvusaV1.1noMemoryCorruptionIn25314.37ByDeign/finalfantasyiv-tas-nomemorycorruption-deign_512kb.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      {
+        name: "Mega Man X (Glitched Password Walkathon)",
+        console: "snes",
+        title: "Super Nintendo",
+        src: "https://archive.org/download/MegaManXglitchedPasswordWalkathonTasIn1656.88ByFractalfusion/megamanx-glitchedpassword_walkathon-tas-fractalfusion.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      {
+        name: "Metroid: Zero Mission (100%)",
+        console: "snes",
+        title: "Super Nintendo",
+        src: "https://archive.org/download/smzeromission-tasv2-101-hoandjzj/smzeromission-tasv2-101-hoandjzj_512kb.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      {
+        name: "Mortal Kombat 3 (Playaround)",
+        console: "snes",
+        title: "Super Nintendo",
+        src: "https://archive.org/download/mk3-playaround-darknoob/mk3-playaround-darknoob_512kb.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      {
+        name: "Ranma 1/2: Chougi Ranbu Hen",
+        console: "snes",
+        title: "Super Nintendo",
+        src: "https://archive.org/download/ranma1_2chougiranbuhen-tas-sheschardcore/ranma1_2chougiranbuhen-tas-sheschardcore.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      {
+        name: "Shin Megami Tensei II",
+        console: "snes",
+        title: "Super Nintendo",
+        src: "https://archive.org/download/shinmegamitensei2-tas-ninespaces/shinmegamitensei2-tas-ninespaces.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      {
+        name: "Star Fox",
+        console: "snes",
+        title: "Super Nintendo",
+        src: "https://archive.org/download/StarfoxTasYtterbijum/starfox-tas-ytterbijum.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      {
+        name: "Super Mario World (No Powerups, Max Exits)",
+        console: "snes",
+        title: "Super Nintendo",
+        src: "https://archive.org/download/supermarioworld-tas-nopowerups_maximumexits-pangaeapanga_512kb/supermarioworld-tas-nopowerups_maximumexits-pangaeapanga_512kb.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      {
+        name: "Super Metroid (Low%)",
+        console: "snes",
+        title: "Super Nintendo",
+        src: "https://archive.org/download/supermetroid-tas-low-sniq/supermetroid-tas-low-sniq_512kb.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      {
+        name: "Super Punch-Out!!",
+        console: "snes",
+        title: "Super Nintendo",
+        src: "https://archive.org/download/superpunchout-tasv3-adelikat/superpunchout-tasv3-adelikat.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      {
+        name: "TMNT IV: Turtles in Time",
+        console: "snes",
+        title: "Super Nintendo",
+        src: "https://archive.org/download/SnesTeenageMutantNinjaTurtlesIvTurtlesInTimeusaIn1855.0By/tmnt4-tas-nitsuja_512kb.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      {
+        name: "The Lion King",
+        console: "snes",
+        title: "Super Nintendo",
+        src: "https://archive.org/download/thelionking-snes-tas-ezgames69_sbdwolf/thelionking-snes-tas-ezgames69_sbdwolf.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      {
+        name: "Tiny Toon Adventures: Buster Busts Loose!",
+        console: "snes",
+        title: "Super Nintendo",
+        src: "https://archive.org/download/tinytoonbbl-tasv3-ezgames69/tinytoonbbl-tasv3-ezgames69_512kb.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      },
+      {
+        name: "Top Gear 2 (All Tracks)",
+        console: "snes",
+        title: "Super Nintendo",
+        src: "https://archive.org/download/topgear2-snes-tasv5-alltracks-technickle/topgear2-snes-tasv5-alltracks-technickle.mp4",
+        type: "video/mp4",
+        width: 640,
+        height: 480
+      }
+    ];
+
+    const STORAGE_KEY = 'retro-selected-game-index'; // legacy single-select
+    const START_STORAGE_KEY = 'retro-start-time-seconds';
+    const STORAGE_SELECTED_GAMES_KEY = 'retro-selected-game-indices';
+    const STORAGE_GAME_ORDER_KEY = 'retro-game-order';
+    const STORAGE_ORDER_MODE_KEY = 'retro-order-mode';
+    const STORAGE_INTERVAL_KEY = 'retro-episodic-interval-seconds';
+    const STORAGE_SKIP_INTERVAL_KEY = 'retro-skip-interval-seconds';
+    const STORAGE_SHOW_TICKER_KEY = 'retro-show-runtime-ticker';
+    const STORAGE_FILTER_KEY = 'retro-current-filter';
+    const STORAGE_SEARCH_KEY = 'retro-search-query';
+    const STORAGE_PROGRESS_MAP_KEY = 'retro-progress-seconds-map-v1';
+    const ORDER_MODES = { MANUAL: 'manual', SHUFFLE: 'shuffle' };
+    const DEFAULT_INTERVAL_SECONDS = 30; // 30 seconds
+    const CHANNEL_NAME = 'retro-game-sync';
+    let channel = null;
+    let currentGameIndex = 0;
+    let currentFilter = 'gameboy';
+    let startSeconds = 0;
+    let selectedGameIndices = new Set();
+    let gameOrder = [];
+    let gameOrderIndexMap = new Map();
+    let orderMode = ORDER_MODES.SHUFFLE;
+    let episodicIntervalSeconds = DEFAULT_INTERVAL_SECONDS;
+    let rotationTimer = null;
+    let playlist = [];
+    let rotationIndex = 0;
+    let progressSecondsMap = {};
+    let skipIntervalSeconds = 30;
+    let skipTimer = null;
+    let showRuntimeTicker = false;
+    let remoteFilter = 'gameboy';
+    let remoteSearch = '';
+
+    function maybeUpgradeIfStale(selectedIndex) {
+      // If the stored index points beyond our known list, we're likely on a stale/cached build.
+      if (Number.isInteger(selectedIndex) && selectedIndex >= games.length) {
+        const url = new URL(window.location.href);
+        const currentVersion = url.searchParams.get('v');
+        if (currentVersion !== APP_VERSION) {
+          url.searchParams.set('v', APP_VERSION);
+          window.location.replace(url.toString());
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function getInitialGameIndex() {
+      const stored = localStorage.getItem(STORAGE_KEY);
+      if (stored !== null && !Number.isNaN(parseInt(stored))) return parseInt(stored);
+      const urlParams = new URLSearchParams(window.location.search);
+      const fromUrl = parseInt(urlParams.get('game'));
+      return Number.isNaN(fromUrl) ? 0 : fromUrl;
+    }
+
+    function parseStartFromParamsOrStorage() {
+      const params = new URLSearchParams(window.location.search);
+      // Priority: explicit 'start' (hh:mm:ss | mm:ss | ss) > h/m/s triplet > storage > default 0
+      const startParam = params.get('start');
+      if (startParam) {
+        const seconds = parseHMS(startParam);
+        if (Number.isFinite(seconds)) return seconds;
+      }
+      const h = parseInt(params.get('h'));
+      const m = parseInt(params.get('m'));
+      const s = parseInt(params.get('s'));
+      if (!Number.isNaN(h) || !Number.isNaN(m) || !Number.isNaN(s)) {
+        return (Number.isNaN(h) ? 0 : h) * 3600 + (Number.isNaN(m) ? 0 : m) * 60 + (Number.isNaN(s) ? 0 : s);
+      }
+      const stored = localStorage.getItem(START_STORAGE_KEY);
+      if (stored !== null && !Number.isNaN(parseInt(stored))) return parseInt(stored);
+      return 0;
+    }
+
+    function parseHMS(value) {
+      if (!value) return 0;
+      // Accept formats: hh:mm:ss, mm:ss, ss
+      const parts = String(value).split(':').map(v => parseInt(v));
+      if (parts.some(v => Number.isNaN(v))) {
+        const asNumber = parseInt(value);
+        return Number.isNaN(asNumber) ? 0 : asNumber;
+      }
+      if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+      if (parts.length === 2) return parts[0] * 60 + parts[1];
+      return parts[0] || 0;
+    }
+
+    function formatHMSText(totalSeconds) {
+      const sec = Math.max(0, Math.floor(totalSeconds || 0));
+      const hh = Math.floor(sec / 3600);
+      const mm = Math.floor((sec % 3600) / 60);
+      const ss = sec % 60;
+      return { hh, mm, ss };
+    }
+
+    function isDisplayMode() {
+      const params = new URLSearchParams(window.location.search);
+      const kraken = (params.get('kraken') || '').toLowerCase();
+      // In CAM, "kraken=1" indicates display view. Anything else => configure view
+      return kraken === '1' || kraken === 'true';
+    }
+
+    function openChannel() {
+      if ('BroadcastChannel' in window) {
+        try {
+          if (!channel) channel = new BroadcastChannel(CHANNEL_NAME);
+        } catch (e) {}
+      }
+    }
+
+    function loadSelectedGamesFromStorage() {
+      try {
+        const raw = localStorage.getItem(STORAGE_SELECTED_GAMES_KEY);
+        const arr = raw ? JSON.parse(raw) : [];
+        if (Array.isArray(arr)) selectedGameIndices = new Set(arr.map(v => Number(v)).filter(v => Number.isInteger(v) && v >= 0 && v < games.length));
+      } catch (e) { selectedGameIndices = new Set(); }
+      // Default: select all if none
+      if (!selectedGameIndices || selectedGameIndices.size === 0) {
+        selectedGameIndices = new Set(games.map((_, i) => i));
+        persistSelectedGames();
+      }
+    }
+
+    function persistSelectedGames() {
+      try { localStorage.setItem(STORAGE_SELECTED_GAMES_KEY, JSON.stringify(Array.from(selectedGameIndices))); } catch (e) {}
+    }
+
+    function loadGameOrderFromStorage() {
+      try {
+        const raw = localStorage.getItem(STORAGE_GAME_ORDER_KEY);
+        const arr = raw ? JSON.parse(raw) : [];
+        gameOrder = Array.isArray(arr) ? arr.map(v => Number(v)).filter(v => Number.isInteger(v) && v >= 0 && v < games.length) : [];
+      } catch (e) { gameOrder = []; }
+      ensureGameOrderIncludesAllGames();
+    }
+
+    function persistGameOrder() {
+      try { localStorage.setItem(STORAGE_GAME_ORDER_KEY, JSON.stringify(gameOrder)); } catch (e) {}
+    }
+
+    function rebuildGameOrderIndex() {
+      gameOrderIndexMap = new Map();
+      for (let i = 0; i < gameOrder.length; i++) gameOrderIndexMap.set(Number(gameOrder[i]), i);
+    }
+
+    function ensureGameOrderIncludesAllGames() {
+      const all = games.map((_, i) => i);
+      const setKnown = new Set(all);
+      const filtered = gameOrder.filter(i => setKnown.has(Number(i)));
+      const missing = all.filter(i => !filtered.includes(i));
+      if (filtered.length === 0) {
+        gameOrder = computeDefaultGameOrder();
+      } else if (missing.length) {
+        gameOrder = filtered.concat(missing);
+      } else {
+        gameOrder = filtered;
+      }
+      rebuildGameOrderIndex();
+      persistGameOrder();
+    }
+
+    function computeDefaultGameOrder() { return games.map((_, i) => i); }
+
+    function moveIndexBeforeTarget(srcIndex, targetIndex) {
+      const src = Number(srcIndex);
+      const tgt = Number(targetIndex);
+      if (!Number.isInteger(src) || !Number.isInteger(tgt) || src === tgt) return false;
+      const fromIdx = gameOrder.indexOf(src);
+      const toIdx = gameOrder.indexOf(tgt);
+      if (fromIdx === -1 || toIdx === -1) return false;
+      const arr = gameOrder.slice();
+      arr.splice(fromIdx, 1);
+      const newToIdx = arr.indexOf(tgt);
+      arr.splice(newToIdx, 0, src);
+      gameOrder = arr;
+      rebuildGameOrderIndex();
+      persistGameOrder();
+      recomputePlaylist();
+      return true;
+    }
+
+    function rankForGlobalIndex(i) {
+      const idx = gameOrderIndexMap.get(Number(i));
+      return Number.isFinite(idx) ? idx : Number.POSITIVE_INFINITY;
+    }
+
+    function loadOrderMode() {
+      try {
+        const raw = localStorage.getItem(STORAGE_ORDER_MODE_KEY);
+        orderMode = (raw === ORDER_MODES.SHUFFLE) ? ORDER_MODES.SHUFFLE : ORDER_MODES.MANUAL;
+      } catch (e) { orderMode = ORDER_MODES.MANUAL; }
+    }
+
+    function persistOrderMode() {
+      try { localStorage.setItem(STORAGE_ORDER_MODE_KEY, orderMode); } catch (e) {}
+    }
+
+    function setOrderMode(mode) {
+      const next = (mode === ORDER_MODES.SHUFFLE) ? ORDER_MODES.SHUFFLE : ORDER_MODES.MANUAL;
+      if (orderMode !== next) {
+        orderMode = next;
+        persistOrderMode();
+        recomputePlaylist();
+        broadcastState();
+        // Disable drag when shuffled
+        const disableDnD = (orderMode !== ORDER_MODES.MANUAL);
+        document.querySelectorAll('.chip-drag').forEach(btn => {
+          btn.disabled = disableDnD;
+          btn.style.opacity = disableDnD ? '0.5' : '1';
+          btn.style.cursor = disableDnD ? 'not-allowed' : 'grab';
+          if (disableDnD) btn.removeAttribute('draggable'); else btn.setAttribute('draggable', 'true');
+        });
+      }
+    }
+
+    function loadIntervalFromStorage() {
+      try {
+        const raw = localStorage.getItem(STORAGE_INTERVAL_KEY);
+        const n = raw ? Number(raw) : NaN;
+        episodicIntervalSeconds = Number.isFinite(n) && n >= 0 ? n : DEFAULT_INTERVAL_SECONDS;
+      } catch (e) { episodicIntervalSeconds = DEFAULT_INTERVAL_SECONDS; }
+    }
+
+    function persistInterval() {
+      try { localStorage.setItem(STORAGE_INTERVAL_KEY, String(episodicIntervalSeconds)); } catch (e) {}
+    }
+
+    function loadSkipIntervalFromStorage() {
+      try {
+        const raw = localStorage.getItem(STORAGE_SKIP_INTERVAL_KEY);
+        const n = raw ? Number(raw) : NaN;
+        skipIntervalSeconds = Number.isFinite(n) && n >= 0 ? Math.floor(n) : 30;
+      } catch (e) { skipIntervalSeconds = 30; }
+    }
+
+    function persistSkipInterval() {
+      try { localStorage.setItem(STORAGE_SKIP_INTERVAL_KEY, String(skipIntervalSeconds)); } catch (e) {}
+    }
+
+    function loadFilterAndSearchFromStorage() {
+      try {
+        const cf = localStorage.getItem(STORAGE_FILTER_KEY);
+        if (cf && typeof cf === 'string') currentFilter = cf;
+      } catch (e) {}
+      try {
+        const qs = localStorage.getItem(STORAGE_SEARCH_KEY);
+        if (typeof qs === 'string') {
+          const el = document.getElementById('game-search');
+          if (el) el.value = qs;
+          remoteSearch = qs;
+        }
+      } catch (e) {}
+      // Mirror current filter into remote for display-mode filtering on refresh
+      remoteFilter = currentFilter || 'all';
+    }
+
+    function loadShowTickerFromStorage() {
+      try {
+        const raw = localStorage.getItem(STORAGE_SHOW_TICKER_KEY);
+        showRuntimeTicker = String(raw) === '1';
+      } catch (e) { showRuntimeTicker = false; }
+    }
+
+    function persistShowTicker() {
+      try { localStorage.setItem(STORAGE_SHOW_TICKER_KEY, showRuntimeTicker ? '1' : '0'); } catch (e) {}
+    }
+
+    function recomputePlaylist() {
+      const filtered = getVisibleIndicesForCurrentUI();
+      // Rotation uses only currently visible items (category/search filtered)
+      const selected = filtered.slice();
+      if (orderMode === ORDER_MODES.MANUAL) {
+        playlist = gameOrder.filter(i => selected.includes(i));
+      } else {
+        const arr = selected.slice();
+        // Fisher-Yates shuffle
+        for (let i = arr.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [arr[i], arr[j]] = [arr[j], arr[i]];
+        }
+        playlist = arr;
+      }
+      if (playlist.length === 0) {
+        // fallback to all games
+        playlist = games.map((_, i) => i);
+      }
+      // Ensure rotationIndex and currentGameIndex align
+      const curPos = playlist.indexOf(currentGameIndex);
+      rotationIndex = curPos >= 0 ? curPos : 0;
+    }
+
+    function getFilteredIndicesForCategory(cat) {
+      if (!cat || cat === 'all') return games.map((_, i) => i);
+      const out = [];
+      for (let i = 0; i < games.length; i++) {
+        if (String(games[i].console).toLowerCase() === String(cat).toLowerCase()) out.push(i);
+      }
+      return out;
+    }
+
+    function getVisibleIndicesForCurrentUI() {
+      const search = document.getElementById('game-search');
+      const qLocal = (search && search.value ? search.value : '').toLowerCase().trim();
+      const q = isDisplayMode() ? String(remoteSearch || '').toLowerCase().trim() : qLocal;
+      const activeFilter = isDisplayMode() ? (remoteFilter || 'all') : currentFilter;
+      const base = (activeFilter === 'all') ? games.map((_, i) => i) : getFilteredIndicesForCategory(activeFilter);
+      if (!q) return base;
+      const res = [];
+      for (const idx of base) {
+        const g = games[idx];
+        if (
+          (String(g.name || '').toLowerCase().includes(q)) ||
+          (String(g.title || '').toLowerCase().includes(q)) ||
+          (String(g.console || '').toLowerCase().includes(q))
+        ) {
+          res.push(idx);
+        }
+      }
+      return res;
+    }
+
+    function broadcastState() {
+      openChannel();
+      if (channel) {
+        try {
+          const effective = Array.from(selectedGameIndices);
+          channel.postMessage({
+            selectedIndices: effective,
+            gameOrder: gameOrder.slice(),
+            orderMode,
+            episodicIntervalSeconds,
+            skipIntervalSeconds,
+            startSeconds,
+            showRuntimeTicker,
+            filter: currentFilter,
+            search: (document.getElementById('game-search')?.value || '')
+          });
+        } catch (e) {}
+      }
+    }
+
+    function loadProgressMapFromStorage() {
+      try {
+        const raw = localStorage.getItem(STORAGE_PROGRESS_MAP_KEY);
+        const obj = raw ? JSON.parse(raw) : {};
+        progressSecondsMap = (obj && typeof obj === 'object') ? obj : {};
+      } catch (e) { progressSecondsMap = {}; }
+    }
+
+    function persistProgressMap() {
+      try { localStorage.setItem(STORAGE_PROGRESS_MAP_KEY, JSON.stringify(progressSecondsMap)); } catch (e) {}
+    }
+
+    function getResumeSecondsForIndex(idx) {
+      const k = String(idx);
+      const n = Number(progressSecondsMap[k]);
+      return Number.isFinite(n) && n >= 0 ? n : 0;
+    }
+
+    function setResumeSecondsForIndex(idx, seconds) {
+      const n = Math.max(0, Math.floor(Number(seconds) || 0));
+      progressSecondsMap[String(idx)] = n;
+      persistProgressMap();
+    }
+
+    function initializeApp() {
+      const display = isDisplayMode();
+      // Load persisted multi-select and rotation settings
+      loadSelectedGamesFromStorage();
+      loadGameOrderFromStorage();
+      loadOrderMode();
+      loadProgressMapFromStorage();
+      loadSkipIntervalFromStorage();
+      loadShowTickerFromStorage();
+      loadFilterAndSearchFromStorage();
+      currentGameIndex = getInitialGameIndex();
+      if (maybeUpgradeIfStale(currentGameIndex)) return;
+      startSeconds = parseStartFromParamsOrStorage();
+      // Persist derived start time so display/config views stay in sync
+      try { localStorage.setItem(START_STORAGE_KEY, String(startSeconds)); } catch (e) {}
+      loadIntervalFromStorage();
+
+      const configContainer = document.getElementById('config-container');
+      const mainInterface = document.getElementById('main-interface');
+
+      if (display) {
+        configContainer.classList.remove('show');
+        mainInterface.classList.remove('hide');
+        // Ensure we start on a game within the filtered playlist
+        recomputePlaylist();
+        if (!playlist.includes(currentGameIndex)) {
+          currentGameIndex = playlist[0] || 0;
+        }
+        loadGame();
+        startRotation();
+        startSkipTimer();
+        // Listen for broadcasted selection changes from Configure view
+        openChannel();
+        if (channel) {
+          channel.onmessage = (event) => {
+            const data = event.data;
+            // Support both index and full game object for robustness
+            if (typeof data === 'number' && !Number.isNaN(data)) {
+              if (maybeUpgradeIfStale(data)) return;
+              currentGameIndex = data;
+              loadGame();
+              startRotation();
+            } else if (data && typeof data === 'object') {
+              if (typeof data.startSeconds === 'number') {
+                startSeconds = Math.max(0, data.startSeconds);
+                try { localStorage.setItem(START_STORAGE_KEY, String(startSeconds)); } catch (e) {}
+                // If video already loaded, seek immediately
+                const video = document.getElementById('game-video');
+                if (video && video.readyState > 0) {
+                  try { video.currentTime = startSeconds; } catch (e) {}
+                }
+              }
+              if (typeof data.showRuntimeTicker === 'boolean') {
+                showRuntimeTicker = !!data.showRuntimeTicker;
+                persistShowTicker();
+                updateRuntimeTickerVisibility();
+              }
+              // Multi-select sync
+              if (Array.isArray(data.selectedIndices)) {
+                selectedGameIndices = new Set(data.selectedIndices.map(Number).filter(n => Number.isInteger(n) && n >= 0 && n < games.length));
+                persistSelectedGames();
+              }
+              if (Array.isArray(data.gameOrder)) {
+                gameOrder = data.gameOrder.map(Number).filter(n => Number.isInteger(n) && n >= 0 && n < games.length);
+                rebuildGameOrderIndex();
+                persistGameOrder();
+              }
+              if (typeof data.orderMode === 'string') {
+                orderMode = (data.orderMode === ORDER_MODES.SHUFFLE) ? ORDER_MODES.SHUFFLE : ORDER_MODES.MANUAL;
+                persistOrderMode();
+              }
+              if (typeof data.episodicIntervalSeconds === 'number') {
+                episodicIntervalSeconds = Math.max(0, Math.floor(data.episodicIntervalSeconds));
+                persistInterval();
+              }
+              if (typeof data.skipIntervalSeconds === 'number') {
+                skipIntervalSeconds = Math.max(0, Math.floor(data.skipIntervalSeconds));
+                persistSkipInterval();
+              }
+              if (typeof data.filter === 'string') {
+                remoteFilter = data.filter || 'all';
+              }
+              if (typeof data.search === 'string') {
+                remoteSearch = data.search || '';
+              }
+              recomputePlaylist();
+              if (!playlist.includes(currentGameIndex)) {
+                currentGameIndex = playlist[0] || 0;
+              }
+              // If a direct game object is provided, load it; else load by index
+              if (data && (data.src || data.type || data.width || data.height || data.console || data.title)) {
+              loadGameFromObject(data);
+              } else {
+                loadGame();
+              }
+              startRotation();
+              startSkipTimer();
+            }
+          };
+        }
+      } else {
+        configContainer.classList.add('show');
+        mainInterface.classList.add('hide');
+        renderFilters();
+        renderRotationControls();
+        renderGamesPicker();
+        // start time controls removed; skip-start replaces it
+        updateRuntimeTickerVisibility();
+      }
+
+      // Listen for selection changes from another window (e.g., CAM config -> display)
+      window.addEventListener('storage', (event) => {
+        if (!isDisplayMode()) return;
+        if (event.key === STORAGE_KEY) {
+          const idx = parseInt(event.newValue || '0');
+          if (!Number.isNaN(idx)) { currentGameIndex = idx; loadGame(); }
+        } else if (event.key === START_STORAGE_KEY) {
+          const newStart = parseInt(event.newValue || '0');
+          if (!Number.isNaN(newStart)) {
+            startSeconds = Math.max(0, newStart);
+            const video = document.getElementById('game-video');
+            if (video && video.readyState > 0) {
+              try { video.currentTime = startSeconds; } catch (e) {}
+            }
+          }
+        } else if (event.key === STORAGE_SELECTED_GAMES_KEY) {
+          loadSelectedGamesFromStorage();
+          recomputePlaylist();
+          if (!selectedGameIndices.has(currentGameIndex)) { currentGameIndex = playlist[0] || 0; loadGame(); startRotation(); }
+        } else if (event.key === STORAGE_GAME_ORDER_KEY) {
+          loadGameOrderFromStorage();
+          recomputePlaylist();
+        } else if (event.key === STORAGE_ORDER_MODE_KEY) {
+          loadOrderMode();
+          recomputePlaylist();
+          startRotation();
+        } else if (event.key === STORAGE_INTERVAL_KEY) {
+          loadIntervalFromStorage();
+          startRotation();
+        } else if (event.key === STORAGE_SKIP_INTERVAL_KEY) {
+          loadSkipIntervalFromStorage();
+          startSkipTimer();
+        }
+      });
+
+      // When returning to the display tab/view, refresh from persisted selection
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible' && isDisplayMode()) {
+          const stored = localStorage.getItem(STORAGE_KEY);
+          const idx = parseInt(stored || '0');
+          if (!Number.isNaN(idx) && idx !== currentGameIndex) {
+            currentGameIndex = idx;
+            loadGame();
+          }
+        }
+      });
+    }
+
+    function renderGamesPicker() {
+      const list = document.getElementById('games-list');
+      if (!list) return;
+      const search = document.getElementById('game-search');
+      const q = (search && typeof search.value === 'string' ? search.value : (String(remoteSearch || ''))).toLowerCase().trim();
+      const activeFilter = currentFilter || 'gameboy';
+      const byFilter = activeFilter === 'all' ? games : games.filter(g => String(g.console).toLowerCase() === String(activeFilter).toLowerCase());
+      const filtered = !q ? byFilter : byFilter.filter(g => (
+        (g.name || '').toLowerCase().includes(q) ||
+        (g.title || '').toLowerCase().includes(q) ||
+        (g.console || '').toLowerCase().includes(q)
+      ));
+      // Sort filtered by manual rank (global order)
+      const sorted = filtered.slice().sort((a, b) => rankForGlobalIndex(games.indexOf(a)) - rankForGlobalIndex(games.indexOf(b)));
+      list.innerHTML = sorted.map(game => {
+        const idx = games.indexOf(game);
+        const isSelected = selectedGameIndices.has(idx);
+        return (
+          `<div class="game-chip" data-index="${idx}">`
+          + `<button class="chip-drag" type="button" draggable="true" aria-label="Reorder">≡</button>`
+          + `<button class="chip-select${isSelected ? ' selected' : ''}" type="button">`
+          + `<span class="badge">${game.console.toUpperCase()}</span>`
+          + `<span style="flex:1 1 auto; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(game.name)}</span>`
+          + `</button>`
+          + `</div>`
+        );
+      }).join('');
+
+      // Selection toggles
+      list.querySelectorAll('.chip-select').forEach(el => {
+        el.addEventListener('click', () => {
+          const parent = el.closest('.game-chip');
+          const idx = parent ? Number(parent.getAttribute('data-index')) : NaN;
+          if (!Number.isInteger(idx)) return;
+          // Always toggle persisted selection; category acts purely as filter
+          if (selectedGameIndices.has(idx)) selectedGameIndices.delete(idx); else selectedGameIndices.add(idx);
+          el.classList.toggle('selected', selectedGameIndices.has(idx));
+          persistSelectedGames();
+          recomputePlaylist();
+          broadcastState();
+        });
+      });
+
+      // Drag-and-drop reordering (global order). Disabled when shuffle
+      let dragSrcIndex = null;
+      list.querySelectorAll('.chip-drag').forEach(handle => {
+        if (orderMode !== ORDER_MODES.MANUAL) {
+          handle.disabled = true;
+          handle.style.opacity = '0.5';
+          handle.style.cursor = 'not-allowed';
+          handle.removeAttribute('draggable');
+          return;
+        }
+        handle.addEventListener('dragstart', (ev) => {
+          const parent = handle.closest('.game-chip');
+          dragSrcIndex = parent ? parent.getAttribute('data-index') : null;
+          try { ev.dataTransfer.setData('text/plain', dragSrcIndex || ''); } catch (e) {}
+          if (ev.dataTransfer) ev.dataTransfer.effectAllowed = 'move';
+        });
+        handle.addEventListener('dragend', () => {
+          dragSrcIndex = null;
+          list.querySelectorAll('.game-chip.drag-over').forEach(ch => ch.classList.remove('drag-over'));
+        });
+      });
+
+      list.querySelectorAll('.game-chip').forEach(chip => {
+        chip.addEventListener('dragover', (ev) => {
+          if (orderMode !== ORDER_MODES.MANUAL) return;
+          ev.preventDefault();
+          chip.classList.add('drag-over');
+          if (ev.dataTransfer) ev.dataTransfer.dropEffect = 'move';
+        });
+        chip.addEventListener('dragleave', () => {
+          chip.classList.remove('drag-over');
+        });
+        chip.addEventListener('drop', (ev) => {
+          if (orderMode !== ORDER_MODES.MANUAL) return;
+          ev.preventDefault();
+          chip.classList.remove('drag-over');
+          let src = dragSrcIndex;
+          try { const t = ev.dataTransfer.getData('text/plain'); if (t) src = t; } catch (e) {}
+          const targetIndex = chip.getAttribute('data-index');
+          if (!src || !targetIndex || src === targetIndex) return;
+          const changed = moveIndexBeforeTarget(Number(src), Number(targetIndex));
+          if (changed) {
+            renderGamesPicker();
+            broadcastState();
+          }
+        });
+      });
+      if (search && !search.__hasListener) {
+        search.addEventListener('input', () => {
+          try { localStorage.setItem(STORAGE_SEARCH_KEY, String(search.value || '')); } catch (e) {}
+          renderGamesPicker();
+          recomputePlaylist();
+          broadcastState();
+        });
+        search.__hasListener = true;
+      }
+    }
+
+    function renderFilters() {
+      const filterBar = document.getElementById('filter-bar');
+      if (!filterBar) return;
+      const consoles = Array.from(new Set(games.map(g => g.console)));
+      const filterKeys = ['all', ...consoles];
+      const LABELS = {
+        all: 'ALL',
+        snes: 'SNES',
+        gameboy: 'GAMEBOY',
+        n64: 'N64',
+        psx: 'PSX',
+        pc: 'PC',
+        gamecube: 'GC'
+      };
+      filterBar.innerHTML = '';
+      filterKeys.forEach(key => {
+        const btn = document.createElement('button');
+        btn.className = 'filter-btn' + (key === currentFilter ? ' active' : '');
+        btn.setAttribute('data-filter', key);
+        btn.textContent = LABELS[key] || key.toUpperCase();
+        btn.addEventListener('click', () => {
+          currentFilter = key;
+          try { localStorage.setItem(STORAGE_FILTER_KEY, String(currentFilter)); } catch (e) {}
+          recomputePlaylist();
+          broadcastState();
+          // Update active state
+          filterBar.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          renderGamesPicker();
+        });
+        filterBar.appendChild(btn);
+      });
+    }
+
+    function selectGame(index) { // legacy single-select behavior
+      currentGameIndex = index;
+      
+      // Update visual selection
+      document.querySelectorAll('.game-item').forEach((item) => {
+        const itemGlobalIndex = parseInt(item.getAttribute('data-global-index') || '-1');
+        item.classList.toggle('selected', itemGlobalIndex === currentGameIndex);
+      });
+
+      // Persist selection so display view can load it
+      try {
+        localStorage.setItem(STORAGE_KEY, String(index));
+      } catch (e) {}
+
+      // Broadcast change so display view updates immediately
+      openChannel();
+      if (channel) {
+        try { channel.postMessage({ index, startSeconds, ...games[index] }); } catch (e) {}
+      }
+    }
+
+    function loadGame() {
+      const game = games[currentGameIndex] || games[0];
+      
+      // Update page title
+      document.title = game.title;
+      
+      // Update video
+      const video = document.getElementById('game-video');
+      const source = document.getElementById('video-source');
+      
+      // Ensure we seek after metadata is ready
+      attachSeekOnMetadata(video, { index: currentGameIndex, src: game.src });
+      source.src = game.src;
+      source.type = game.type;
+      video.width = game.width;
+      video.height = game.height;
+      video.load(); // Reload the video with new source
+      // In display mode, hide controls to avoid reserved chrome affecting fit
+      if (isDisplayMode()) {
+        video.controls = false;
+        try { video.removeAttribute('controls'); } catch (e) {}
+      }
+      
+      // Update console styling (square mode for 640x640 display)
+      video.className = `console-screen square ${game.console}`;
+      // Rotation behavior: loop only when episodic interval > 0
+      try { video.loop = episodicIntervalSeconds > 0; } catch (e) {}
+      // Set up ended handler for full-playthrough mode (interval = 0)
+      video.onended = null;
+      if (episodicIntervalSeconds === 0 && isDisplayMode()) {
+        video.onended = () => goToNextGame();
+      }
+      // Attach persistence of playback position
+      attachPlaybackPersistence(video, { index: currentGameIndex, src: game.src });
+      hookTickerUpdates(video);
+    }
+
+    function loadGameFromObject(game) {
+      // Update page title
+      document.title = game.title || document.title;
+      // Update video
+      const video = document.getElementById('game-video');
+      const source = document.getElementById('video-source');
+      const idx = (Number.isInteger(game.index) ? Number(game.index) : games.findIndex(g => g.src === game.src));
+      attachSeekOnMetadata(video, { index: idx >= 0 ? idx : currentGameIndex, src: game.src });
+      source.src = game.src;
+      source.type = game.type || 'video/mp4';
+      video.width = game.width || 640;
+      video.height = game.height || 480;
+      video.load();
+      if (isDisplayMode()) {
+        video.controls = false;
+        try { video.removeAttribute('controls'); } catch (e) {}
+      }
+      // Update console styling (square mode for 640x640 display)
+      if (game.console) {
+        video.className = `console-screen square ${game.console}`;
+      }
+      // Attach persistence of playback position
+      attachPlaybackPersistence(video, { index: Number.isInteger(idx) && idx >= 0 ? idx : currentGameIndex, src: game.src });
+      hookTickerUpdates(video);
+    }
+
+    function attachSeekOnMetadata(video, opts) {
+      if (!video) return;
+      const index = Number.isInteger(opts && opts.index) ? Number(opts.index) : currentGameIndex;
+      // Prefer per-game resume if available; fallback to global startSeconds
+      let target = 0;
+      if (isDisplayMode()) {
+        const resume = getResumeSecondsForIndex(index);
+        const baseStart = Math.max(0, startSeconds || 0);
+        const skipStart = Math.max(0, Number(skipIntervalSeconds) || 0);
+        target = Number(resume) > 0 ? Number(resume) : Math.max(baseStart, skipStart);
+      } else {
+        target = Math.max(0, startSeconds || 0);
+      }
+      const onMeta = () => {
+        try { video.currentTime = target; } catch (e) {}
+        video.removeEventListener('loadedmetadata', onMeta);
+        // Initialize ticker display on metadata load
+        updateRuntimeTickerText(video);
+      };
+      video.addEventListener('loadedmetadata', onMeta);
+    }
+
+    function attachPlaybackPersistence(video, opts) {
+      if (!video) return;
+      const index = Number.isInteger(opts && opts.index) ? Number(opts.index) : currentGameIndex;
+      // Remove previous handlers if any
+      const prev = video.__retroHandlers;
+      if (prev) {
+        try { video.removeEventListener('timeupdate', prev.onTimeUpdate); } catch (e) {}
+        try { video.removeEventListener('pause', prev.onPause); } catch (e) {}
+        try { video.removeEventListener('ended', prev.onEnded); } catch (e) {}
+      }
+      let lastSavedSecond = -1;
+      const onTimeUpdate = () => {
+        const sec = Math.floor(video.currentTime || 0);
+        if (sec === lastSavedSecond) return;
+        lastSavedSecond = sec;
+        try { setResumeSecondsForIndex(index, sec); } catch (e) {}
+      };
+      const onPause = () => {
+        try { setResumeSecondsForIndex(index, Math.floor(video.currentTime || 0)); } catch (e) {}
+      };
+      const onEnded = () => {
+        // If full-playthrough mode, reset to beginning for next time; otherwise keep last position
+        if (episodicIntervalSeconds === 0) {
+          try { setResumeSecondsForIndex(index, 0); } catch (e) {}
+        } else {
+          try { setResumeSecondsForIndex(index, Math.floor(video.currentTime || 0)); } catch (e) {}
+        }
+      };
+      video.addEventListener('timeupdate', onTimeUpdate);
+      video.addEventListener('pause', onPause);
+      video.addEventListener('ended', onEnded);
+      video.__retroHandlers = { onTimeUpdate, onPause, onEnded };
+    }
+
+    function renderRotationControls() {
+      const container = document.getElementById('config-container');
+      if (!container) return;
+      let controls = document.getElementById('rotation-controls');
+      if (controls) return; // already rendered
+      controls = document.createElement('div');
+      controls.id = 'rotation-controls';
+      controls.className = 'controls';
+      controls.style.flexWrap = 'wrap';
+      controls.innerHTML = `
+        <div class="control-label">Order</div>
+        <select id="order-select" class="search" style="max-width:200px">
+          <option value="manual">Manual</option>
+          <option value="shuffle">Shuffle</option>
+        </select>
+        <div class="control-label">Episodic Interval</div>
+        <select id="episodic-interval-select" class="search" style="max-width:200px"></select>
+        <div class="control-label">Skip start at</div>
+        <input id="skip-seconds-input" class="search" type="number" min="0" step="5" style="width:120px" placeholder="Seconds" />
+        <div class="control-label" style="opacity:0.8">sec</div>
+        <label style="display:inline-flex; align-items:center; gap:6px; margin-left:8px;">
+          <input id="show-ticker-checkbox" type="checkbox" />
+          <span style="font-size:13px;color:#cbd5e1;">Show Runtime</span>
+        </label>
+        <button id="select-all-btn" type="button" class="filter-btn">Select All</button>
+        <button id="clear-all-btn" type="button" class="filter-btn">Clear All</button>
+      `;
+      container.insertBefore(controls, document.getElementById('games-list'));
+
+      const orderSel = document.getElementById('order-select');
+      const intervalSel = document.getElementById('episodic-interval-select');
+      const skipInput = document.getElementById('skip-seconds-input');
+      const selAll = document.getElementById('select-all-btn');
+      const clrAll = document.getElementById('clear-all-btn');
+      const tickerCb = document.getElementById('show-ticker-checkbox');
+      if (orderSel) {
+        orderSel.value = (orderMode === ORDER_MODES.SHUFFLE) ? ORDER_MODES.SHUFFLE : ORDER_MODES.MANUAL;
+        orderSel.addEventListener('change', () => {
+          setOrderMode(orderSel.value);
+          renderGamesPicker();
+          broadcastState();
+        });
+      }
+      if (intervalSel) {
+        // Populate with 0, 0.5, 1..10 minutes
+        const values = [0, 0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+        intervalSel.innerHTML = values.map(v => {
+          const label = v === 0 ? 'Full playthrough (0)' : (v === 0.5 ? '0.5 min (30s)' : `${v} min`);
+          return `<option value="${v}">${label}</option>`;
+        }).join('');
+        const curMin = episodicIntervalSeconds / 60;
+        const closest = values.reduce((p, c) => Math.abs(c - curMin) < Math.abs(p - curMin) ? c : p, values[0]);
+        intervalSel.value = String(closest);
+        intervalSel.addEventListener('change', () => {
+          const minutes = Number(intervalSel.value);
+          episodicIntervalSeconds = minutes * 60;
+          persistInterval();
+          broadcastState();
+        });
+      }
+      if (skipInput) {
+        skipInput.value = String(skipIntervalSeconds);
+        skipInput.addEventListener('change', () => {
+          const s = Math.max(0, Math.floor(Number(skipInput.value) || 0));
+          skipIntervalSeconds = s;
+          persistSkipInterval();
+          broadcastState();
+        });
+      }
+      if (tickerCb) {
+        tickerCb.checked = !!showRuntimeTicker;
+        tickerCb.addEventListener('change', () => {
+          showRuntimeTicker = !!tickerCb.checked;
+          persistShowTicker();
+          updateRuntimeTickerVisibility();
+          broadcastState();
+        });
+      }
+      if (selAll) {
+        selAll.addEventListener('click', () => {
+          const visible = getVisibleIndicesForCurrentUI();
+          const set = new Set(selectedGameIndices);
+          visible.forEach(i => set.add(i));
+          selectedGameIndices = set;
+          persistSelectedGames();
+          recomputePlaylist();
+          renderGamesPicker();
+          broadcastState();
+        });
+      }
+      if (clrAll) {
+        clrAll.addEventListener('click', () => {
+          const visible = getVisibleIndicesForCurrentUI();
+          const set = new Set(selectedGameIndices);
+          visible.forEach(i => set.delete(i));
+          selectedGameIndices = set;
+          persistSelectedGames();
+          recomputePlaylist();
+          renderGamesPicker();
+          broadcastState();
+        });
+      }
+    }
+
+    function startRotation() {
+      if (!isDisplayMode()) return;
+      if (rotationTimer) { clearTimeout(rotationTimer); rotationTimer = null; }
+      const video = document.getElementById('game-video');
+      if (video) {
+        try { video.loop = episodicIntervalSeconds > 0; } catch (e) {}
+        video.onended = null;
+        if (episodicIntervalSeconds === 0) {
+          video.onended = () => goToNextGame();
+        }
+      }
+      if (episodicIntervalSeconds > 0) {
+        rotationTimer = setTimeout(() => {
+          goToNextGame();
+        }, Math.max(1000, Math.floor(episodicIntervalSeconds * 1000)));
+      }
+      // Ensure ticker is in correct state on rotation start
+      updateRuntimeTickerVisibility();
+    }
+
+    function startSkipTimer() {
+      if (!isDisplayMode()) return;
+      if (skipTimer) { clearInterval(skipTimer); skipTimer = null; }
+      if (!skipIntervalSeconds || skipIntervalSeconds <= 0) return;
+      skipTimer = setInterval(() => {
+        const video = document.getElementById('game-video');
+        if (!video) return;
+        const dur = Number(video.duration);
+        if (!Number.isFinite(dur) || dur <= 0) return;
+        const next = Math.min((video.currentTime || 0) + skipIntervalSeconds, Math.max(0, dur - 0.25));
+        try { video.currentTime = next; } catch (e) {}
+        try { setResumeSecondsForIndex(currentGameIndex, Math.floor(next)); } catch (e) {}
+      }, Math.max(1000, skipIntervalSeconds * 1000));
+    }
+
+    function goToNextGame() {
+      // Persist current game's progress before switching
+      const video = document.getElementById('game-video');
+      if (video) {
+        try { setResumeSecondsForIndex(currentGameIndex, Math.floor(video.currentTime || 0)); } catch (e) {}
+      }
+      recomputePlaylist();
+      if (playlist.length === 0) return;
+      const curPos = playlist.indexOf(currentGameIndex);
+      rotationIndex = curPos >= 0 ? curPos : rotationIndex;
+      rotationIndex = (rotationIndex + 1) % playlist.length;
+      // If we wrapped and shuffle mode is on, reshuffle for the next cycle
+      if (rotationIndex === 0 && orderMode === ORDER_MODES.SHUFFLE) {
+        // Maintain current index at position 0 of new shuffle for smoother transition
+        const remaining = Array.from(selectedGameIndices).filter(i => i !== currentGameIndex);
+        for (let i = remaining.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [remaining[i], remaining[j]] = [remaining[j], remaining[i]]; }
+        playlist = [currentGameIndex].concat(remaining);
+      }
+      currentGameIndex = playlist[rotationIndex];
+      loadGame();
+      startRotation();
+    }
+
+    function updateRuntimeTickerVisibility() {
+      const el = document.getElementById('runtime-ticker');
+      if (!el) return;
+      el.style.display = showRuntimeTicker ? 'inline-block' : 'none';
+    }
+
+    function formatTickerTime(seconds) {
+      const sec = Math.max(0, Math.floor(Number(seconds) || 0));
+      const mm = String(Math.floor(sec / 60)).padStart(2, '0');
+      const ss = String(sec % 60).padStart(2, '0');
+      return `${mm}:${ss}`;
+    }
+
+    function updateRuntimeTickerText(video) {
+      const el = document.getElementById('runtime-ticker');
+      if (!el || !video) return;
+      const cur = formatTickerTime(video.currentTime || 0);
+      const dur = formatTickerTime(video.duration || 0);
+      el.textContent = `${cur} / ${dur}`;
+    }
+
+    function hookTickerUpdates(video) {
+      if (!video) return;
+      // Remove prior listeners
+      const prev = video.__tickerHandlers;
+      if (prev) {
+        try { video.removeEventListener('timeupdate', prev.onTimeUpdate); } catch (e) {}
+        try { video.removeEventListener('loadedmetadata', prev.onMeta); } catch (e) {}
+        try { video.removeEventListener('durationchange', prev.onDuration); } catch (e) {}
+      }
+      const onTimeUpdate = () => updateRuntimeTickerText(video);
+      const onMeta = () => updateRuntimeTickerText(video);
+      const onDuration = () => updateRuntimeTickerText(video);
+      video.addEventListener('timeupdate', onTimeUpdate);
+      video.addEventListener('loadedmetadata', onMeta);
+      video.addEventListener('durationchange', onDuration);
+      video.__tickerHandlers = { onTimeUpdate, onMeta, onDuration };
+      updateRuntimeTickerVisibility();
+      updateRuntimeTickerText(video);
+    }
+
+    function escapeHtml(s) {
+      return String(s || '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    }
+
+    // start-time controls removed (replaced by skip-start)
+
+    // Initialize when page loads
+    document.addEventListener('DOMContentLoaded', initializeApp);
+  </script>
+</body>
+
+</html>
